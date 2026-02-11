@@ -92,6 +92,7 @@ This script writes logs every 2 seconds and also creates “incident bursts”.
 ```bash
 cat > generator/generate_logs.sh <<'EOF'
 
+EOF
 
 chmod +x generator/generate_logs.sh
 ```
@@ -101,6 +102,7 @@ chmod +x generator/generate_logs.sh
 ```bash
 cat > pipeline/logstash.conf <<'EOF'
 
+EOF
 ```
 
 ### 4) Create `docker-compose.yml` (ELK + log generator)
@@ -174,6 +176,8 @@ curl -s "http://localhost:9200/_cat/indices?v" | grep ops-logs || true
 `Screenshots/06-discover-errors-filter.png`
 ![Discover Errors](screenshots/06-discover-errors-filter.png)
 
+---
+
 3. Add another filter:
 
    * `service: api`
@@ -189,7 +193,7 @@ In Kibana Discover, refresh and you’ll see new logs continuously.
 `Screenshots/08-live-new-logs.png`
 ![Live Logs](screenshots/08-live-new-logs.png)
 
-Optional: confirm logs are being written on your host:
+Confirm logs are being written on host:
 
 ```bash
 tail -f logs/app.log
