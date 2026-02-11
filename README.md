@@ -118,6 +118,7 @@ EOF
 docker compose up -d
 docker compose ps
 ```
+`Screenshots/01-docker-compose-up.png`
 ![Compose Up](screenshots/01-docker-compose-up.png)
 
 ### 6) Verify Elasticsearch is healthy
@@ -126,7 +127,7 @@ docker compose ps
 curl -s http://localhost:9200 | head
 curl -s "http://localhost:9200/_cat/indices?v"
 ```
-
+`Screenshots/02-elasticsearch-health.png`
 ![Elasticsearch Health](screenshots/02-elasticsearch-health.png)
 
 > `yellow`, it’s normal for a single-node setup (replicas can’t be assigned).
@@ -143,13 +144,14 @@ Then confirm indices:
 ```bash
 curl -s "http://localhost:9200/_cat/indices?v" | grep ops-logs || true
 ```
-
+`Screenshots/03-logstash-running.png`
 ![Logstash Ingest](screenshots/03-logstash-running.png)
 
 ### 8) Open Kibana and create a Data View
 
 1. Open Kibana: `http://localhost:5601`
 
+`Screenshots/04-kibana-ui-home.png`
 ![Kibana Home](screenshots/04-kibana-ui-home.png)
 
 2. Go to **Stack Management → Data Views**
@@ -159,6 +161,7 @@ curl -s "http://localhost:9200/_cat/indices?v" | grep ops-logs || true
    * Index pattern: `ops-logs-*`
    * Time field: `@timestamp`
 
+`Screenshots/05-data-view-created.png`
 ![Data View](screenshots/05-data-view-created.png)
 
 ### 9) Discover logs and filter errors
@@ -167,20 +170,23 @@ curl -s "http://localhost:9200/_cat/indices?v" | grep ops-logs || true
 2. Filter:
 
    * `level: ERROR`
-![alt text](image.png)
+
+`Screenshots/06-discover-errors-filter.png`
 ![Discover Errors](screenshots/06-discover-errors-filter.png)
 
 3. Add another filter:
 
    * `service: api`
-![alt text](image.png)
+
+`Screenshots/07-service-filter.png`
 ![Service Filter](screenshots/07-service-filter.png)
 
 ### 10) Watch live logs in Kibana
 
 The generator writes a new log every 2 seconds.
 In Kibana Discover, refresh and you’ll see new logs continuously.
-![alt text](image.png)
+
+`Screenshots/08-live-new-logs.png`
 ![Live Logs](screenshots/08-live-new-logs.png)
 
 Optional: confirm logs are being written on your host:
