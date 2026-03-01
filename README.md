@@ -1,292 +1,244 @@
-
 # Centralized Logging (ELK) — Real-Time “Ops” Incident Logging Stack
 
+## Context
 This project is my **centralized logging lab** using **Elasticsearch + Logstash + Kibana (ELK)** with a **real-time log generator**.
 
-The goal is simple: in a real incident, I don’t want to SSH into 5 servers looking for one error.  
+Real Ops goal: during an incident, I don’t want to SSH into 5 containers/servers hunting for one error line.  
 I want **one place** to search logs fast, filter by service, and prove what happened.
 
 ---
 
 ## Problem
-
 When logs are scattered everywhere, incidents turn into a mess:
 
 - I’m jumping between servers/containers trying to find “the one log line”
 - Logs rotate or disappear before I can investigate
 - It’s hard to answer basic questions quickly:
-  - When did the errors start?
+  - When did errors start?
   - Which service is failing?
   - Is it one node or the whole system?
   - Are errors increasing or stable?
 
-In real Ops, **slow log search = slow recovery**.
+**Slow log search = slow recovery.**
 
 ---
 
 ## Solution
-
 I built a centralized logging stack using **ELK** with **real-time log creation**:
 
 - **Log Generator (Alpine container)** writes logs continuously into `logs/app.log`
-- **Logstash** tails that log file, parses it into fields (service, level, request_id, message)
+- **Logstash** tails that log file and parses fields (`service`, `level`, `request_id`, `message`)
 - **Elasticsearch** stores and indexes logs for fast search
-- **Kibana** lets me filter/search logs during incidents (Discover, filters, time range)
+- **Kibana** lets me filter/search logs during incidents (Discover + filters + time range)
 
 With this setup I can:
-
 - Search by `service`, `level`, `request_id`
-- Zoom into a time range when errors started
-- Prove incidents with screenshots and exported queries
+- Zoom into the time range when errors started
+- Prove incident investigation with screenshots and saved queries
 
 ---
 
-## Architecture Diagram
-
+## Architecture
 ![Architecture Diagram](screenshots/architecture.png)
 
-The diagram shows a centralized logging pipeline where server/app logs are ingested by Logstash, indexed and searchable in Elasticsearch, and explored through Kibana for fast troubleshooting and visibility.
+**Flow:** Log Generator → Logstash (parse + ingest) → Elasticsearch (index + store) → Kibana (search + filters)
 
 ---
 
-## Project Structure
+## What I did  + screenshots
 
-```text
-centralized-logging-elk/
-├── docker-compose.yml
-├── pipeline/
-│   └── logstash.conf
-├── generator/
-│   └── generate_logs.sh
-├── logs/
-│   └── app.log
-└── screenshots/
-    ├── 01-docker-compose-up.png
-    ├── 02-elasticsearch-health.png
-    ├── 03-logstash-running.png
-    ├── 04-kibana-ui-home.png
-    ├── 05-data-view-created.png
-    ├── 06-discover-errors-filter.png
-    ├── 07-service-filter.png
-    └── 08-live-new-logs.png
-```
+### 1) Started the stack (Goal: bring ELK + generator up locally)
+- I started everything using Docker Compose and verified containers were running.
 
----
-
-## Step-by-step CLI
-
-> **Target:** Local demo using Docker Compose (easy to run, easy to reproduce).
-> **Folder name:** `centralized-logging-elk`
-
-### 1) Create the project folders
-
-```bash
-mkdir -p centralized-logging-elk/{pipeline,generator,logs,screenshots}
-cd centralized-logging-elk
-```
-
-### 2) Create the real-time log generator script
-
-This script writes logs every 2 seconds and also creates “incident bursts”.
-
-```bash
-cat > generator/generate_logs.sh <<'EOF'
-
-EOF
-
-chmod +x generator/generate_logs.sh
-```
-
-### 3) Create Logstash pipeline config (parse logs into fields)
-
-```bash
-cat > pipeline/logstash.conf <<'EOF'
-
-EOF
-```
-
-### 4) Create `docker-compose.yml` (ELK + log generator)
-
-```bash
-cat > docker-compose.yml <<'EOF'
-
-EOF
-```
-
-### 5) Start the stack
-
-```bash
-: > logs/app.log
-docker compose up -d
-docker compose ps
-```
-`Screenshots/01-docker-compose-up.png`
+**Screenshot — Compose up**
 ![Compose Up](screenshots/01-docker-compose-up.png)
 
-### 6) Verify Elasticsearch is healthy
+---
 
-```bash
-curl -s http://localhost:9200 | head
-curl -s "http://localhost:9200/_cat/indices?v"
-```
-`Screenshots/02-elasticsearch-health.png`
+### 2) Verified Elasticsearch health (Goal: confirm search backend is reachable + indices can exist)
+- I checked Elasticsearch responds and can list indices.
+
+**Screenshot — Elasticsearch health / indices**
 ![Elasticsearch Health](screenshots/02-elasticsearch-health.png)
 
-> `yellow`, it’s normal for a single-node setup (replicas can’t be assigned).
+---
 
-### 7) Confirm Logstash is ingesting logs
+### 3) Confirmed Logstash ingestion (Goal: ensure logs are being parsed + shipped to Elasticsearch)
+- I confirmed Logstash is running and ingesting the generator log file.
 
-```bash
-docker compose logs -f logstash
-docker compose logs --tail=20 -f logstash
-```
-
-Then confirm indices:
-
-```bash
-curl -s "http://localhost:9200/_cat/indices?v" | grep ops-logs || true
-```
-`Screenshots/03-logstash-running.png`
+**Screenshot — Logstash running / ingest proof**
 ![Logstash Ingest](screenshots/03-logstash-running.png)
 
-### 8) Open Kibana and create a Data View
+---
 
-1. Open Kibana: `http://localhost:5601`
+### 4) Opened Kibana (Goal: confirm UI works for incident investigation)
+- I opened Kibana UI and confirmed it loads.
 
-`Screenshots/04-kibana-ui-home.png`
+**Screenshot — Kibana home**
 ![Kibana Home](screenshots/04-kibana-ui-home.png)
 
-2. Go to **Stack Management → Data Views**
-3. Create Data View:
+---
 
-   * Name: `ops-logs`
-   * Index pattern: `ops-logs-*`
-   * Time field: `@timestamp`
+### 5) Created a Data View (Goal: make logs searchable in Discover)
+- I created a Data View for `ops-logs-*` with `@timestamp` as the time field.
 
-`Screenshots/05-data-view-created.png`
+**Screenshot — Data view created**
 ![Data View](screenshots/05-data-view-created.png)
 
-### 9) Discover logs and filter errors
+---
 
-1. Go to **Discover**
-2. Filter:
+### 6) Investigated “incident logs” (Goal: filter errors fast during an incident)
+- In Discover, I filtered for errors (`level: ERROR`) to simulate incident triage.
 
-   * `level: ERROR`
-
-`Screenshots/06-discover-errors-filter.png`
+**Screenshot — Discover error filter**
 ![Discover Errors](screenshots/06-discover-errors-filter.png)
 
 ---
 
-3. Add another filter:
+### 7) Narrowed to a specific service (Goal: identify which service is failing)
+- I filtered further by service (`service: api`) to isolate the failing component.
 
-   * `service: api`
-
-`Screenshots/07-service-filter.png`
+**Screenshot — Service filter**
 ![Service Filter](screenshots/07-service-filter.png)
-
-### 10) Watch live logs in Kibana
-
-The generator writes a new log every 2 seconds.
-In Kibana Discover, refresh and you’ll see new logs continuously.
-
-`Screenshots/08-live-new-logs.png`
-![Live Logs](screenshots/08-live-new-logs.png)
-
-Confirm logs are being written on host:
-
-```bash
-tail -f logs/app.log
-```
 
 ---
 
-## Outcome
+### 8) Watched live logs (Goal: verify new logs appear in real time)
+- I confirmed logs keep streaming and new events appear continuously in Kibana.
 
-After this setup:
+**Screenshot — Live logs updating**
+![Live Logs](screenshots/08-live-new-logs.png)
 
-* I have one place to search logs across services (Kibana)
-* I can filter incidents fast (`ERROR`, `service=api`, time range)
-* I can prove what happened with screenshots and queries
-* This is reproducible and runs locally with Docker Compose
-* I can simulate a real incident burst anytime (the generator does it automatically)
+---
+
+## Business Impact
+- **Faster incident response:** one place to search instead of checking logs service-by-service
+- **Better visibility:** filter by `ERROR`, `service`, and time range to find root cause quickly
+- **Proof for stakeholders:** screenshots + saved queries show exactly what happened and when
+- **Reusable lab:** runs locally and can be repeated anytime for demos or practice
 
 ---
 
 ## Troubleshooting
 
 ### Elasticsearch index health is `yellow`
+That’s normal in **single-node** mode because replicas can’t be assigned.  
+If you want it green, set replicas to `0` (see **Useful CLI → Elasticsearch**).
 
-That’s normal in **single-node** mode because replicas can’t be assigned.
-If you want it green:
+---
+
+### Kibana loads but no logs show up
+Most common causes:
+- No index exists yet (`ops-logs-*`)
+- Data View pattern/time field is wrong
+- Discover time range is too narrow
+
+Fix steps:
+1) Confirm indices exist (see **Useful CLI → Elasticsearch**)
+2) Confirm Logstash is ingesting (see **Useful CLI → Logstash**)
+3) Confirm Data View:
+   - pattern: `ops-logs-*`
+   - time field: `@timestamp`
+4) In Discover, try time range: **Last 15 minutes**
+
+---
+
+### Logstash keeps restarting
+Most common cause: parsing mismatch (grok pattern doesn’t match log format).  
+Check Logstash logs (see **Useful CLI → Logstash**) and adjust `pipeline/logstash.conf` pattern.
+
+---
+
+### No new logs appear (generator issue)
+- Check generator container logs
+- Confirm `logs/app.log` is growing
+
+(Commands in **Useful CLI → Generator / File checks**)
+
+---
+
+### Ports already in use (9200 or 5601)
+- Another container/app may already be bound to those ports.
+- Stop conflicts or change ports in `docker-compose.yml`.
+
+(Commands in **Useful CLI → Ports**)
+
+---
+
+## Useful CLI (setup + verification + troubleshooting)
+
+### Setup / Run
+```bash
+# from repo root
+mkdir -p centralized-logging-elk/{pipeline,generator,logs,screenshots}
+cd centralized-logging-elk
+
+# reset the log file (important so Logstash reads clean)
+: > logs/app.log
+
+# start
+docker compose up -d
+
+# check status
+docker compose ps
+````
+
+### Elasticsearch (health + indices + common fixes)
 
 ```bash
+# basic health check
+curl -s http://localhost:9200 | head
+
+# list indices
+curl -s "http://localhost:9200/_cat/indices?v"
+
+# (optional) make single-node indices green by removing replicas
 curl -s -X PUT "http://localhost:9200/ops-logs-*/_settings" \
   -H 'Content-Type: application/json' \
   -d '{"index":{"number_of_replicas":0}}'
 ```
 
-### Kibana loads but no logs show up
-
-1. Check indices exist:
+### Logstash (ingestion troubleshooting)
 
 ```bash
-curl -s "http://localhost:9200/_cat/indices?v"
-```
-
-2. Confirm Logstash is ingesting:
-
-```bash
+# follow logs
 docker compose logs -f logstash
-```
 
-3. Confirm Data View:
-
-* pattern: `ops-logs-*`
-* time field: `@timestamp`
-* time range in Discover is not too narrow (try “Last 15 minutes”)
-
-### Logstash keeps restarting
-
-Check the logs:
-
-```bash
+# last 200 lines (useful for errors)
 docker compose logs logstash --tail=200
+
+# quick check: do we see our index name?
+curl -s "http://localhost:9200/_cat/indices?v" | grep ops-logs || true
 ```
 
-Most common cause is a grok parsing mismatch.
-If your log format changes, update the `grok` pattern.
-
-### No new logs appear (generator issue)
-
-Check generator logs:
+### Kibana (quick checks)
 
 ```bash
+# confirm Kibana is reachable
+curl -I http://localhost:5601
+```
+
+### Generator / File checks (confirm logs are being written)
+
+```bash
+# generator logs
 docker compose logs -f log-generator
-```
 
-Confirm the log file is growing:
-
-```bash
+# confirm file is growing
 wc -l logs/app.log
-tail -n 5 logs/app.log
+tail -n 20 logs/app.log
+tail -f logs/app.log
 ```
 
-### Ports already in use (9200 or 5601)
-
-Find what is using the port:
+### Ports (find conflicts)
 
 ```bash
+# show running containers
 docker ps
-```
 
-Stop conflicting container:
-
-```bash
+# if you know the conflicting container
 docker stop <container_id>
 ```
-
-Or change ports in `docker-compose.yml`.
 
 ---
 
@@ -296,5 +248,4 @@ Or change ports in `docker-compose.yml`.
 docker compose down
 ```
 
-```
-```
+
